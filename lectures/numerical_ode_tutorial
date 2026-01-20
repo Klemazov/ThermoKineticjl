@@ -8,8 +8,10 @@ using InteractiveUtils
 begin
 	using Plots;
 	using PlutoUI;
-	#TableOfContents() 
 end
+
+# ╔═╡ 0f7278c7-4ac8-43e6-b7fb-238581bfde1d
+TableOfContents() 
 
 # ╔═╡ e0cfddfa-961a-449a-9307-57d9b5181e73
 md"""
@@ -135,6 +137,56 @@ begin
 	scatter(res)
 	plot!(res[1], exp.(res[1]))
 end
+
+# ╔═╡ f1567852-cbb6-4c28-91de-3f698e3a756e
+md"""
+### Локальная ошибка дискретизации (локальная погрешность)
+
+
+"""
+
+# ╔═╡ 39c9341d-df27-44d6-ae04-2e54c3916670
+md"""
+### Пример решения более сложной диффуры
+
+Допустим мы хотим решить следующее уравнение
+
+$\frac{dα}{dt} = K(T)\cdot f(\alpha, params...)$
+
+$K(T) = A exp(\frac{-E_a}{RT})$
+
+$T= T(t)$
+
+$\alpha(0) = 0$
+вид функции $f$ для простоты будет равен 
+
+$f(\alpha) = 1-\alpha$
+
+
+То есть в итоге мы хотим решить следующее уравнение 
+
+$\frac{dα}{dt} = A exp(\frac{-E_a}{RT})\cdot (1-\alpha)$
+$\alpha(0) = 0$
+"""
+
+# ╔═╡ 4b6fa954-97df-4524-b4fb-e4d493150c86
+# Напишем функции 
+begin 
+	const R = 8.314;
+	
+	K(A, Ea, T) = A*exp(-Ea/(R*T));
+
+	f1(α) = 1-α;
+
+	function F(α, params...)
+		A, Ea, T = params;
+		
+		return K(A, Ea, T)*f1(α)
+	end
+end
+
+# ╔═╡ 2ff55e87-f0a7-4d81-8cab-785fef05447c
+F(0.5, 1e10, 1e5, 1200)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1289,6 +1341,7 @@ version = "1.13.0+0"
 
 # ╔═╡ Cell order:
 # ╠═651ef892-f551-11f0-a943-6900cfebf6d9
+# ╠═0f7278c7-4ac8-43e6-b7fb-238581bfde1d
 # ╟─e0cfddfa-961a-449a-9307-57d9b5181e73
 # ╟─fbf32ea9-9f16-4590-b464-59e79d98f60b
 # ╟─a15b877f-93b7-494e-8ef8-7b1de8434576
@@ -1302,5 +1355,9 @@ version = "1.13.0+0"
 # ╠═8474d73c-243d-4c44-a03e-ee2bba9f3d29
 # ╠═1af0a4f3-f5d4-4154-afdf-80ee7eca5cdd
 # ╠═18f5a6a7-3ba6-45d2-a190-759c3905909d
+# ╠═f1567852-cbb6-4c28-91de-3f698e3a756e
+# ╠═39c9341d-df27-44d6-ae04-2e54c3916670
+# ╠═4b6fa954-97df-4524-b4fb-e4d493150c86
+# ╠═2ff55e87-f0a7-4d81-8cab-785fef05447c
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
