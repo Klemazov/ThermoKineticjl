@@ -24,9 +24,9 @@ md"""
 
 С помощью метода Эйлера можно решать задачи Коши. 
 
-$\frac{dy}{dt} = f(t,y)$
+$\frac{du}{dt} = f(t,u)$
 
-$y(0) = y_0$
+$u(0) = u_0$
 
 
 В чем суть алгоритма?
@@ -35,23 +35,23 @@ $y(0) = y_0$
 
 В пределе производную можно представить так
 
-$\frac{dy}{dt} = lim_{ \rightarrow 0}\frac{y(t+\Delta t)-y(t)}{\Delta t}$
+$\frac{du}{dt} = lim_{ \rightarrow 0}\frac{u(t+\Delta t)-u(t)}{\Delta t}$
 
 При конечном приближении можно переписать следующим образом
 
-$\frac{dy}{dt} \approx \frac{y(t+h)-y(t)}{h}$
+$\frac{du}{dt} \approx \frac{u(t+h)-y(t)}{h}$
 
 вставим эту формулу в задачу Коши. Получим 
 
-$\frac{y(t+h)-y(t)}{h} = f(t,y)$
+$\frac{u(t+h)-u(t)}{h} = f(t,y)$
 
-Величина $y(t+h)$ это величина функции на следующем шаге (то, что мы хотим найти)
+Величина $u(t+h)$ это величина функции на следующем шаге (то, что мы хотим найти)
 
-Выразим $y(t+h)$
+Выразим $u(t+h)$
 
-$y(t+h) = y(t) +hf(t,y)$
+$u(t+h) = u(t) +hf(t,y)$
 
-значение $y(t)$ мы знаем в начальный момент
+значение $u(t)$ мы знаем в начальный момент
 
 это и есть метод Эйлера. 
 """
@@ -69,30 +69,16 @@ $\frac{dy}{dt} \approx \frac{y(t+h)-y(t)}{h}$
 """
 
 # ╔═╡ 920f1b56-f43b-476f-a73a-1d181704e92f
-∂y∂x(y::Function, x, h) = (y(x+h)-y(x))/h;
+∂u∂t(u::Function, x, h) = (u(x+h)-u(x))/h;
 
 # ╔═╡ 5e2f5ace-c12c-4fcd-b345-f1c4dd75794f
 md"""
-$y(t+h) = y(t) +hf(t,y)$
+$u(t+h) = u(t) +hf(t,y)$
 
 или по-другому
 
-$y_{i+1}(t+h) = y(t)_{i} +hf(t,y_{i})$
+$u_{i+1}(t+h) = u(t)_{i} +hf(t,u_{i})$
 """
-
-# ╔═╡ 0e76e5e5-9be3-40e9-baea-ff3bdf4b921d
-function euler(f::Function, tspan, n, y₀)
-	t0, t_end = tspan;
-	h = (t_end-t0)/n;
-	t = [t0 + i*h for i in 0:n];
-	y = fill(y₀,n+1)
-
-	for i in 1:n-1
-		y[i+1] = y[i]+h*f(t[i], y[i])
-	end
-	
-	return t,y
-end
 
 # ╔═╡ 5a360b35-d10b-46b0-9f17-b4029ee80404
 md"""
@@ -103,9 +89,9 @@ md"""
 md"""
 В качестве примера возьмем уравнение 
 
-$\frac{dy}{dt} = y$
+$\frac{du}{dt} = y$
 
-$y(0) = 1$
+$u(0) = 1$
 
 Если посчитать руками, то получим 
 """
@@ -120,27 +106,69 @@ struct IVP #initial value problem
 	tspan::Tuple{Int64, Int64}
 	f::Function
 	params::AbstractArray
-	u0::Float64;
+	u₀::Float64;
 end
+
+# ╔═╡ 0e76e5e5-9be3-40e9-baea-ff3bdf4b921d
+begin
+	function euler(f::Function, tspan, n, u₀, params)
+		t0, t_end = tspan;
+		h = (t_end-t0)/n;
+		t = [t0 + i*h for i in 0:n];
+		u = fill(u₀...,n+1)
+	
+		for i in 1:n
+			u[i+1] = u[i]+h*f(t[i], u[i], params)
+		end
+		
+		return t,u
+	end
+	
+	euler(problem::IVP, n) = euler(problem.f, problem.tspan, n, problem.u₀, problem.params) 
+
+end
+
+# ╔═╡ da69722d-c937-4fea-9806-ae19b8fc43fd
+md"""
+Пример
+"""
 
 # ╔═╡ 1af0a4f3-f5d4-4154-afdf-80ee7eca5cdd
 begin
-	f(x,t) = t;
+	f(u, t, p) = t;
 	n = 100;
-	y₀ = 1.0;
-	tspan=(0,1);
-	res = euler(f, tspan, n, y₀)
+	u₀ = 1.0;
+	tspan=(0,10);
+	params = []
+	problem = IVP(tspan, f, params, u₀)
+	res = euler(f, tspan, n, u₀, params)
+	res1 = euler(problem, n)
 end;
+
+# ╔═╡ 5fe52065-5067-403c-87ac-c35a6687a7c9
+problem
 
 # ╔═╡ 18f5a6a7-3ba6-45d2-a190-759c3905909d
 begin
-	scatter(res)
-	plot!(res[1], exp.(res[1]))
+	plot(res, markershape = :circle, label = "euler")
+	plot!(res[1], exp.(res[1]), label = "exact solution")
 end
 
 # ╔═╡ f1567852-cbb6-4c28-91de-3f698e3a756e
 md"""
-### Локальная ошибка дискретизации (локальная погрешность)
+### Оценка погрешности 
+Погрешность на шаге (локальная погрешность)  это разность между численным решением после одного шага вычисления и точным решением в точке
+
+численный шаг вычисляется по формуле
+
+$u_{i+1}(t+h) = u(t)_{i} +hf(t,u_{i})$
+
+Точное решение можно разложить в ряд Тейлора
+
+$u_{i+1}(t+h) = u(t)_{i} + h u\prime(x) + \mathcal{O}(h^2)$
+
+
+Искомая ошибка $L$ 
 
 
 """
@@ -184,9 +212,6 @@ begin
 		return K(A, Ea, T)*f1(α)
 	end
 end
-
-# ╔═╡ 2ff55e87-f0a7-4d81-8cab-785fef05447c
-F(0.5, 1e10, 1e5, 1200)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1351,13 +1376,14 @@ version = "1.13.0+0"
 # ╠═0e76e5e5-9be3-40e9-baea-ff3bdf4b921d
 # ╟─5a360b35-d10b-46b0-9f17-b4029ee80404
 # ╟─156c3e18-c19a-4476-bf35-35b25a67d3bf
-# ╠═2737c13e-9926-424b-b40b-8307731826f6
+# ╟─2737c13e-9926-424b-b40b-8307731826f6
 # ╠═8474d73c-243d-4c44-a03e-ee2bba9f3d29
+# ╟─da69722d-c937-4fea-9806-ae19b8fc43fd
 # ╠═1af0a4f3-f5d4-4154-afdf-80ee7eca5cdd
+# ╠═5fe52065-5067-403c-87ac-c35a6687a7c9
 # ╠═18f5a6a7-3ba6-45d2-a190-759c3905909d
 # ╠═f1567852-cbb6-4c28-91de-3f698e3a756e
 # ╠═39c9341d-df27-44d6-ae04-2e54c3916670
 # ╠═4b6fa954-97df-4524-b4fb-e4d493150c86
-# ╠═2ff55e87-f0a7-4d81-8cab-785fef05447c
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
