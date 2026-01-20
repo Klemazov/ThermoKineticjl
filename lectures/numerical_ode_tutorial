@@ -4,6 +4,18 @@
 using Markdown
 using InteractiveUtils
 
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    #! format: off
+    return quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+    #! format: on
+end
+
 # ╔═╡ 651ef892-f551-11f0-a943-6900cfebf6d9
 begin
 	using Plots;
@@ -133,10 +145,15 @@ md"""
 Пример
 """
 
+# ╔═╡ c5cfa30a-fa1d-4e28-932b-4ee217137853
+md"""
+число точек n = $@bind n Slider(10:1000; show_value = true)
+"""
+
 # ╔═╡ 1af0a4f3-f5d4-4154-afdf-80ee7eca5cdd
 begin
 	f(u, t, p) = t;
-	n = 100;
+	#n = 100;
 	u₀ = 1.0;
 	tspan=(0,10);
 	params = []
@@ -193,7 +210,7 @@ $f(\alpha) = 1-\alpha$
 
 То есть в итоге мы хотим решить следующее уравнение 
 
-$\frac{dα}{dt} = A exp(\frac{-E_a}{RT})\cdot (1-\alpha)$
+$\frac{dα}{dt} = A exp(\frac{-E_a}{RT(t)})\cdot (1-\alpha)$
 $\alpha(0) = 0$
 """
 
@@ -211,6 +228,25 @@ begin
 		
 		return K(A, Ea, T)*f1(α)
 	end
+
+	struct KineticProblem
+		f::Function
+		K::Function
+		T
+		α
+		paramsAE::AbstractArray
+		params::AbstractArray
+	end
+	
+	function (kp::KineticProblem)(α)
+		K = kp.K;
+		f = kp.f;
+		T = kp.T;
+		A, Ea = kp.paramsAE;
+		params = kp.params;
+		return K(A, Ea, T)*f(α, params...)
+	end
+	
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -228,7 +264,7 @@ PlutoUI = "~0.7.78"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.3"
+julia_version = "1.12.4"
 manifest_format = "2.0"
 project_hash = "86502ec862c31d15332c8f810fd1e1cfa29f5e65"
 
@@ -745,7 +781,7 @@ version = "1.11.0"
 
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
-version = "2025.5.20"
+version = "2025.11.4"
 
 [[deps.NaNMath]]
 deps = ["OpenLibm_jll"]
@@ -1381,9 +1417,10 @@ version = "1.13.0+0"
 # ╟─da69722d-c937-4fea-9806-ae19b8fc43fd
 # ╠═1af0a4f3-f5d4-4154-afdf-80ee7eca5cdd
 # ╠═5fe52065-5067-403c-87ac-c35a6687a7c9
+# ╠═c5cfa30a-fa1d-4e28-932b-4ee217137853
 # ╠═18f5a6a7-3ba6-45d2-a190-759c3905909d
 # ╠═f1567852-cbb6-4c28-91de-3f698e3a756e
-# ╠═39c9341d-df27-44d6-ae04-2e54c3916670
+# ╟─39c9341d-df27-44d6-ae04-2e54c3916670
 # ╠═4b6fa954-97df-4524-b4fb-e4d493150c86
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
