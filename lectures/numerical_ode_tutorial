@@ -4,18 +4,6 @@
 using Markdown
 using InteractiveUtils
 
-# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
-macro bind(def, element)
-    #! format: off
-    return quote
-        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
-        local el = $(esc(element))
-        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
-        el
-    end
-    #! format: on
-end
-
 # ╔═╡ 651ef892-f551-11f0-a943-6900cfebf6d9
 begin
 	using Plots;
@@ -70,18 +58,13 @@ $u(t+h) = u(t) +hf(t,y)$
 
 # ╔═╡ a15b877f-93b7-494e-8ef8-7b1de8434576
 md"""
-Попробуем реализовать данный метод самым простым способом
-
-## Реализация метода Эйлера 
+## Реализация классического метода Эйлера 
 """
 
 # ╔═╡ 8c32ee6b-19db-42b0-a981-5780bde732c3
 md"""
 $\frac{dy}{dt} \approx \frac{y(t+h)-y(t)}{h}$
 """
-
-# ╔═╡ 920f1b56-f43b-476f-a73a-1d181704e92f
-∂u∂t(u::Function, x, h) = (u(x+h)-u(x))/h;
 
 # ╔═╡ 5e2f5ace-c12c-4fcd-b345-f1c4dd75794f
 md"""
@@ -91,6 +74,43 @@ $u(t+h) = u(t) +hf(t,y)$
 
 $u_{i+1}(t+h) = u(t)_{i} +hf(t,u_{i})$
 """
+
+# ╔═╡ 0e76e5e5-9be3-40e9-baea-ff3bdf4b921d
+begin
+	# обертка
+	struct FunctionHandler<: Function
+		f::Function 
+		params::AbstractArray
+	end
+
+	# чтобы объект был callable
+	function (f_h::FunctionHandler)(t, u)
+		f_h.f(t,u,f_h.params...)
+	end
+
+	# алгоритм эйлера
+	function euler(f::Function, tspan, n, u₀)
+		t0, t_end = tspan;
+		h = (t_end-t0)/n;
+		t = [t0 + i*h for i in 0:n];
+		u = fill(u₀...,n+1)
+	
+		for i in 1:n
+			u[i+1] = u[i]+h*f(u[i], t[i])
+		end
+		
+		return t,u
+	end
+ 
+	
+	
+	f(u,t,p) = p*u
+	fh = FunctionHandler(f, [1.0])
+	fh(1,2)
+	sol = euler(fh, (0,10), 100, [1.0])
+	scatter(sol)
+	plot!(sol[1], exp.(sol[1]))
+end
 
 # ╔═╡ 5a360b35-d10b-46b0-9f17-b4029ee80404
 md"""
@@ -119,56 +139,6 @@ struct IVP #initial value problem
 	f::Function
 	params::AbstractArray
 	u₀::Float64;
-end
-
-# ╔═╡ 0e76e5e5-9be3-40e9-baea-ff3bdf4b921d
-begin
-	function euler(f::Function, tspan, n, u₀, params)
-		t0, t_end = tspan;
-		h = (t_end-t0)/n;
-		t = [t0 + i*h for i in 0:n];
-		u = fill(u₀...,n+1)
-	
-		for i in 1:n
-			u[i+1] = u[i]+h*f(t[i], u[i], params)
-		end
-		
-		return t,u
-	end
-	
-	euler(problem::IVP, n) = euler(problem.f, problem.tspan, n, problem.u₀, problem.params) 
-
-end
-
-# ╔═╡ da69722d-c937-4fea-9806-ae19b8fc43fd
-md"""
-Пример
-"""
-
-# ╔═╡ c5cfa30a-fa1d-4e28-932b-4ee217137853
-md"""
-число точек n = $@bind n Slider(10:1000; show_value = true)
-"""
-
-# ╔═╡ 1af0a4f3-f5d4-4154-afdf-80ee7eca5cdd
-begin
-	f(u, t, p) = t;
-	#n = 100;
-	u₀ = 1.0;
-	tspan=(0,10);
-	params = []
-	problem = IVP(tspan, f, params, u₀)
-	res = euler(f, tspan, n, u₀, params)
-	res1 = euler(problem, n)
-end;
-
-# ╔═╡ 5fe52065-5067-403c-87ac-c35a6687a7c9
-problem
-
-# ╔═╡ 18f5a6a7-3ba6-45d2-a190-759c3905909d
-begin
-	plot(res, markershape = :circle, label = "euler")
-	plot!(res[1], exp.(res[1]), label = "exact solution")
 end
 
 # ╔═╡ f1567852-cbb6-4c28-91de-3f698e3a756e
@@ -1405,20 +1375,14 @@ version = "1.13.0+0"
 # ╠═0f7278c7-4ac8-43e6-b7fb-238581bfde1d
 # ╟─e0cfddfa-961a-449a-9307-57d9b5181e73
 # ╟─fbf32ea9-9f16-4590-b464-59e79d98f60b
-# ╟─a15b877f-93b7-494e-8ef8-7b1de8434576
+# ╠═a15b877f-93b7-494e-8ef8-7b1de8434576
 # ╟─8c32ee6b-19db-42b0-a981-5780bde732c3
-# ╠═920f1b56-f43b-476f-a73a-1d181704e92f
 # ╟─5e2f5ace-c12c-4fcd-b345-f1c4dd75794f
 # ╠═0e76e5e5-9be3-40e9-baea-ff3bdf4b921d
 # ╟─5a360b35-d10b-46b0-9f17-b4029ee80404
 # ╟─156c3e18-c19a-4476-bf35-35b25a67d3bf
 # ╟─2737c13e-9926-424b-b40b-8307731826f6
 # ╠═8474d73c-243d-4c44-a03e-ee2bba9f3d29
-# ╟─da69722d-c937-4fea-9806-ae19b8fc43fd
-# ╠═1af0a4f3-f5d4-4154-afdf-80ee7eca5cdd
-# ╠═5fe52065-5067-403c-87ac-c35a6687a7c9
-# ╠═c5cfa30a-fa1d-4e28-932b-4ee217137853
-# ╠═18f5a6a7-3ba6-45d2-a190-759c3905909d
 # ╠═f1567852-cbb6-4c28-91de-3f698e3a756e
 # ╟─39c9341d-df27-44d6-ae04-2e54c3916670
 # ╠═4b6fa954-97df-4524-b4fb-e4d493150c86
