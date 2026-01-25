@@ -1,3 +1,4 @@
+begin
 struct ParamsFunctionHandler{F,P}
     f::F
     params::P
@@ -86,15 +87,22 @@ function rk4(f, tspan, u₀, n)
     return t,u
 end
 
-f(t, u) = u;
+function f_t(t,u)
+    T = 9t
+    return exp(-1/T)*(1-u)^5
+end
 
-res_rk = rk4(f, (0.,10.0), 1.0, 100);
-res_euler = euler(f, (0.0,10.0), 1.0, 100);
-res_midpoint = midpoint(f, (0.,10.0), 1.0, 100);
+f(t, u) = 0.2exp(-20/t)*(1-u)^8+0.8exp(-90/t)*(1-u)^2;
+f1(t,u) = exp(-1/t)*(1-u)
+fcat(t,u) = exp(-1/t)*0.2(1-u)*u
 
-function plot_res()
-    plot(range(1,10,1000), exp.(range(1,10,1000)))
-    scatter!(res_rk, label = "rk4")
-    scatter!(res_euler, label = "mp")
-    scatter!(res_midpoint, label = "euler")
-end 
+res_f = rk4(f, (0.1,100.0), 0.001, 1000);
+res_f1=rk4(f1, (0.1,100.0), 0.001, 1000);
+res_cat = res_rk_f1=rk4(fcat, (0.1,100.0), 0.001, 1000);
+res_f_t = rk4(f_t, (0.1,100.0), 0.001, 1000);
+
+#plot(res_f)
+#plot!(res_f1)
+#plot!(res_cat)
+plot(res_f_t)
+end
