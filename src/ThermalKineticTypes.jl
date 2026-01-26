@@ -1,14 +1,14 @@
+#Kintic ODE Function 
+# it should be a storage for creating K(T(t))*f(α)
 
-struct KineticODEFuncion{T}
+struct KineticODEFuncion
     K
-    A::T
-    Ea::T
+    A
+    Ea
     f
     T
-    params::Vector{T}
+    params
 end
-
-
 """
     (k::KineticODEFuncion)(t,α)
 
@@ -24,4 +24,5 @@ function (k::KineticODEFuncion)(t,α)
     params = k.params
     return K(A, Ea,T(t))*f(α, params...)
 end
+
 
