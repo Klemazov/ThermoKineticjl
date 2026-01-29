@@ -48,7 +48,7 @@ md"""
 - немного архаичный язык программирования
 - по многим тестам язык уступает в скорости 
 
-# Плюсы и минусы языка python
+# Плюсы и минусы языка Python
 
 **плюсы**
 
@@ -405,23 +405,27 @@ end
 # какой-то код после
 ```
 
-Хорошим тоном является использовать отдельное хранилище для самой задачи и отдельно прописать алгоритм решения 
-```julia
-struct ODEProblem 
 
-#Перечисляем все, что нужно для решения нашей задачи
-# нам будут необходимы: функция, временной промежуток, начальное условие,
-#параметры(если есть) число шагов или точность (в зависимости от алгоритма)
-
-end
-```
-Далее необходимо написать сам алгоритм и в качестве аргумента передать наш экземпляр ODEProblem 
-
-*используя такой подход мы можем создать множество экземпляров с различными начальными условиями, функциями и параметрами)*
-
-В данном примере я буду использовать готовую структуру из пакета `DifferentialEquation.jl`
 
 """
+
+# ╔═╡ 0e76e5e5-9be3-40e9-baea-ff3bdf4b921d
+begin
+	function euler(f, tspan, u₀, n)
+		#создаем "сетку" для нашего алгоритма
+		t0, t_end = tspan;
+		h = (t_end-t0)/n;
+		t = [t0 + i*h for i in 0:n];
+		u = fill(u₀...,n+1)
+	
+		for i in 1:n
+			u[i+1] = u[i]+h*f(t[i], u[i])
+		end
+		
+		return t,u
+	end
+
+end
 
 # ╔═╡ 5a360b35-d10b-46b0-9f17-b4029ee80404
 md"""
@@ -432,88 +436,171 @@ md"""
 md"""
 В качестве примера возьмем уравнение 
 
-$\frac{du}{dt} = y$
+$\frac{du}{dt} = u$
 
 $u(0) = 1$
-
-Если посчитать руками, то получим 
 """
 
 # ╔═╡ 2737c13e-9926-424b-b40b-8307731826f6
 md"""
-Соберем все, что необходимо для решения задачи в отдельный объект (в матлабе можно собрать все в класс)
-"""
+Хорошим тоном является использовать отдельное хранилище для самой задачи и отдельно прописать алгоритм решения 
+```julia
+struct IVP 
 
-# ╔═╡ 8474d73c-243d-4c44-a03e-ee2bba9f3d29
-begin
-	struct IVP{T<:Real, F<:Function} #initial value problem
+#Перечисляем все, что нужно для решения нашей задачи
+# нам будут необходимы: функция, временной промежуток, начальное условие,
+#параметры(если есть) число шагов или точность (в зависимости от алгоритма)
+
+end
+```
+Далее необходимо написать сам алгоритм и в качестве аргумента передать наш экземпляр IVP 
+
+*используя такой подход мы можем создать множество экземпляров с различными начальными условиями, функциями и параметрами)*
+
+
+Примерная реализация выглядит примерно таким образом
+```julia
+struct IVP{T<:Real, F<:Function} #initial value problem
 		tspan::Tuple{T, T}
 		f::F
 		u₀::T
 		params::Vector{T}
 		
 	end
+```
 
-	struct SolverIVP{T<:Real, F<:Function}
-		problem::IVP
-		n::T
-		alg::Function
-	end
-	
-end
-
-# ╔═╡ 0e76e5e5-9be3-40e9-baea-ff3bdf4b921d
-begin
-	function euler(f, tspan, n, u₀, params)
-		#создаем "сетку" для нашего алгоритма
-		t0, t_end = tspan;
-		h = (t_end-t0)/n;
-		t = [t0 + i*h for i in 0:n];
-		u = fill(u₀...,n+1)
-	
-		for i in 1:n
-			u[i+1] = u[i]+h*f(t[i], u[i], params)
-		end
-		
-		return t,u
-	end
-	
-	euler(problem::IVP, n) = euler(problem.f, problem.tspan, n, problem.u₀, problem.params) 
-
-end
+"""
 
 # ╔═╡ da69722d-c937-4fea-9806-ae19b8fc43fd
 md"""
 Пример
 """
 
-# ╔═╡ c5cfa30a-fa1d-4e28-932b-4ee217137853
+# ╔═╡ 4f1a4635-4131-41cd-8b72-c7807ce5b733
+begin
+	#Создадим нашу структуру для постановки задачи
+	struct IVP{T} #initial value problem
+			f
+			tspan::Tuple{T, T}
+			u₀
+			params
+	end
+
+	
+
+
+	#наш алгоритм не умеет обрабатывать нашу структуру IVP. Попробуем исправить это
+
+	# функция euler(f, tspan, n, u₀) принимает 4 аргумента
+
+	euler(prob::IVP, n) = euler(prob.f, prob.tspan, prob.u₀, prob.params, n)
+
+	
+end
+
+# ╔═╡ 899a68f1-e66a-4d2b-bbbd-542346e7f247
 md"""
-число точек n = $@bind n Slider(10:1000; show_value = true)
+Есть еще проблема. Если мы заходим передать в алгоритм Эйлера параметры, то мы не сможем этого сделать. 
 """
 
-# ╔═╡ 1af0a4f3-f5d4-4154-afdf-80ee7eca5cdd
+# ╔═╡ acbb122c-a3aa-49d3-8b30-8a08615b001b
+md"""
+Матлаб предлагает решить проблему следующим образом 
+
+ode45 works only with functions that use two input arguments, t and y. However, you can pass extra parameters by defining them outside the function and passing them in when you specify the function handle.
+
+Solve the ODE
+
+odefcn, a local function included at the end of this example, represents this system of equations as a function that accepts four input arguments: t, y, A, and B.
+
+```matlab
+function dydt = odefcn(t,y,A,B)
+  dydt = zeros(2,1);
+  dydt(1) = y(2);
+  dydt(2) = (A/B)*t.*y(1);
+end
+```
+
+```matlab
+A = 1;
+B = 2;
+tspan = [0 5];
+y0 = [0 0.01];
+[t,y] = ode45(@(t,y) odefcn(t,y,A,B), tspan, y0);
+```
+
+Мы можем написать такой-же обработчик
+
+```julia
+
+struct ParamsFunctionHandler{F,P}
+    f::F
+    params::P
+end
+```
+
+ниже написана функция, которая сделает поведение обработчика выше такое, чтобы казалось, что это функция двух аргументов, но на самом деле мы передадим нужные параметры 
+```julia
+function (handler::ParamsFunctionHandler)(t,u)
+    handler.f(t,u,handler.params...)
+end
+```
+"""
+
+# ╔═╡ b877bd95-475c-4d69-92d6-9b736971af3c
 begin
-	f(u, t, p) = t;
-	#n = 100;
-	u₀ = 1.0;
-	tspan=(0.,10.);
-	params = [0.0]
-	problem = IVP(tspan,f,u₀, params)
-	res = euler(f, tspan, n, u₀, params)
-	res1 = euler(problem, n)
+	#создадим обработчик функции с параметрами
+	struct ParamsFunctionHandler{F,P}
+    	f::F
+    	params::P
+	end
+
+	function (handler::ParamsFunctionHandler)(t,u)
+    	handler.f(t,u,handler.params...)
+	end
+
+	#проверим
+	p_test = 2
+	f_test(t,u,p) = p*u
+	f_test_handler = ParamsFunctionHandler(f_test, p_test)
+	f_test_handler(1,80)
+end
+
+# ╔═╡ 3b848af1-09a5-4bc3-b134-37c7169c4e4a
+function euler(f, tspan, u₀, params, n)
+	fₚ = ParamsFunctionHandler(f, params)
+	return euler(fₚ, tspan, u₀,  n)
+end
+
+# ╔═╡ 4a63682a-a690-40f7-bb67-8e8a721ac859
+md"""
+число точек n = $@bind n Slider(1:100; show_value = true)
+"""
+
+# ╔═╡ 264bfc9b-f818-4f55-8c9b-bad954f72864
+begin
+	#Запишем нашу функцию
+	f(t,u) = u
+	fₚ(t,u,p) = p*u
+	#Запишем начальное условие
+	u₀ = [1.0]
+	tspan = (0.0,1.0)
+	params = [0.9]
+
+	sol₁ = euler(f, tspan,u₀, n)
+	
+	prob₁ = IVP(fₚ, tspan, u₀, params)
+	solₚ = euler(prob₁, n)
 end;
 
-# ╔═╡ 9df38f2c-47ad-49f6-8ebf-38946f4aacad
-ivp_problem = IVP((1.0,10.0), f, 0.0, [1.])
+# ╔═╡ 9ae7baad-2394-419e-ab70-369f4e62aa10
+typeof(n)
 
-# ╔═╡ 5fe52065-5067-403c-87ac-c35a6687a7c9
-problem
-
-# ╔═╡ 18f5a6a7-3ba6-45d2-a190-759c3905909d
+# ╔═╡ b8b0f747-f0e6-47bc-9921-97f92e29b189
 begin
-	plot(res, markershape = :circle, label = "euler")
-	plot!(res[1], exp.(res[1]), label = "exact solution")
+	scatter(sol₁)
+	scatter!(solₚ)
+	plot!(range(0,1,100), exp.(range(0,1,100)))
 end
 
 # ╔═╡ f1567852-cbb6-4c28-91de-3f698e3a756e
@@ -527,11 +614,37 @@ $u_{i+1}(t+h) = u(t)_{i} +hf(t,u_{i})$
 
 Точное решение можно разложить в ряд Тейлора
 
-$u_{i+1}(t+h) = u(t)_{i} + h u\prime(x) + \mathcal{O}(h^2)$
+$u_{i+1}(t+h) = u(t)_{i} 
++ \frac{h}{1!} u\prime(x) + \mathcal{O}(h^2)$
+
+O(h) — это обозначение "большое О от h", математический символ для оценки порядка величины ошибки или сложности, когда значение **растет не быстрее, чем константа, умноженная на h (размер шага)**.
+
+Первая производная у нас
+$u\prime = f(t,u)$
+
+перепишем
+
+$u_{i+1}(t+h) = u(t)_{i} 
++ \frac{h}{1!}f(t,u) + \mathcal{O}(h^2)$
+
+поделим все на $h$
 
 
-Искомая ошибка $L$ 
+$u_{i+1}(t+h)-u(t)_{i}  = 
++ \frac{h}{1!}f(t,u) + \mathcal{O}(h^2)$
 
+
+$\frac{u_{i+1}(t+h)-u(t)_{i}}{h}  = 
++ f(t,u) + \mathcal{O}(h)$
+
+заметим, что 
+$\mathcal{O}(h^2) \rightarrow \mathcal{O}(h)$
+
+слева у нас производная (конечная разность)
+
+Это приближение первого порядка, потому что ошибка в нашем шаге может быть выражена как ошибка в производной
+
+**Метод Эйлера - первый порядок точности**
 
 """
 
@@ -561,6 +674,11 @@ $k_2 = f(t_m, u_m)$
 
 $u_{i+1} = u_i + hk_2$
 
+
+либо можно записать в одну строчку 
+
+$u(t+h) = u(t) + h\Phi =u(t) + h(f(t+0.5h,u(t) + 0.5h f(t,u(t))))$
+
 ### Реализация Midpoint Method
 
 
@@ -580,14 +698,55 @@ for i in 1:n
 
 """
 
+# ╔═╡ 60734153-890a-42cd-8811-277e6f7a3be5
+function midpoint(f, tspan, u₀, n)
+    t0, t_end = tspan;
+    h = (t_end-t0)/n;
+    t = [t0+i*h for i in 0:n]
+    u = fill(u₀..., n+1)
+
+    for i in 1:n
+        k₁ = f(t[i], u[i])
+        uₘ = u[i] + 0.5*h*k₁;
+        tₘ = t[i]+0.5h;
+        k₂ = f(tₘ, uₘ);
+        u[i+1] = u[i] + h* k₂
+    end
+    return t,u
+end
+
 # ╔═╡ 02b8f103-da2a-4685-a463-860a525c1453
 md"""
 ### Оценка погрешности 
+
+Снова посмотрим на выражение "в одну строчку"
+$u(t+h) = u(t) + h\Phi =u(t) + h(f(t+0.5h,u(t) + 0.5h f(t,u(t))))$
+
+Используя двумерное разложение в ряд Тейлора можно получить 
+
+(верим без вывода)
+
+$u(t+h)-u(t) = \mathcal{O}(h^3)$
+
+**Метод Midpoint - 2 порядок точности**
+
 """
 
 # ╔═╡ 9d1eab1b-f09e-4471-a74f-e1f2c5d10d36
 md"""
 ## Метод Рунге-Кутты
+
+Обобщение первых двух методов на более высокие порядки точности называют методами Рунге-Кутты
+
+Явные методы Рунге-Кутты можно записать следующим образом
+
+$u(t+h) = u(t) + \Sigma_1^s b_ik_i$
+
+$k_1 = f(t,u)$
+
+$k_2 = f(t,u)$
+
+![Таблица коэффициентов](../img/rk.png)
 
 ## Классический метод Рунге-Кутты 4 порядка
 
@@ -605,10 +764,57 @@ for i in 1:n
 ```
 """
 
+# ╔═╡ 24a0906b-0fe8-4988-884b-68e99a5a3829
+function rk4(f, tspan, u₀, n)
+    t0, t_end = tspan;
+    h = (t_end-t0)/n;
+    t = [t0+i*h for i in 0:n]
+    u = fill(u₀..., n+1)
+
+    for i in 1:n
+        k₁ = f(t[i], u[i])
+        k₂ = f(t[i]+0.5h, u[i]+0.5h*k₁)
+        k₃ = f(t[i], u[i]+0.5h*k₂)
+        k₄ = f(t[i], u[i]+h*k₃)
+        u[i+1] = u[i] + (h/6)*(k₁+2k₂+2k₃+k₄)
+    end
+    return t,u
+end
+
 # ╔═╡ f376ba57-1638-4437-9462-0f4b1689eeb5
 md"""
 ### Оценка погрешности
 """
+
+# ╔═╡ 66f76ab1-b589-418a-8889-4678e4c1870f
+md"""
+Этот метод имеет четвёртый порядок точности
+"""
+
+# ╔═╡ 8f482008-887c-4473-b626-b583d9348840
+md"""
+## Сравнение методов
+"""
+
+# ╔═╡ b337d993-f77b-4af5-aaa5-bf8de00fd4c8
+md"""
+число точек для теста nₜ = $@bind nₜ Slider(1:10; show_value = true)
+"""
+
+# ╔═╡ 0f46eacc-5f01-4790-9b4a-92c25d6f750e
+begin
+	solₑ = euler(f, tspan,u₀, nₜ)
+	solₘ = midpoint(f, tspan,u₀, nₜ)
+	solᵣₖ₄ = rk4(f, tspan,u₀, nₜ)
+end;
+
+# ╔═╡ 190e0c58-92d2-4868-b830-474018f8eed8
+begin
+	plot(range(0,1,100), exp.(range(0,1,100)), label ="true")
+	plot!(solₑ,markershape = :rect, label = "euler")
+	plot!(solₘ,markershape = :circ, label = "midpoint")
+	plot!(solᵣₖ₄,markershape = :star, label = "rk4")
+end
 
 # ╔═╡ 39c9341d-df27-44d6-ae04-2e54c3916670
 md"""
@@ -669,7 +875,7 @@ begin
 
 	params_kin = [1e5,1e5,500.0]
 	#problem_kin = IVP(tspan,F,u₀, params_kin)
-	res_kin = euler(F, tspan, n, u₀, params_kin)
+	#res_kin = euler(F, tspan, n, u₀, params_kin)
 	
 end
 
@@ -3374,24 +3580,34 @@ version = "1.13.0+0"
 # ╟─a15b877f-93b7-494e-8ef8-7b1de8434576
 # ╟─8c32ee6b-19db-42b0-a981-5780bde732c3
 # ╟─5e2f5ace-c12c-4fcd-b345-f1c4dd75794f
-# ╠═a265cfc7-b953-4989-9dc8-2db19a45d0b5
 # ╠═0e76e5e5-9be3-40e9-baea-ff3bdf4b921d
 # ╟─5a360b35-d10b-46b0-9f17-b4029ee80404
-# ╟─156c3e18-c19a-4476-bf35-35b25a67d3bf
+# ╠═156c3e18-c19a-4476-bf35-35b25a67d3bf
 # ╟─2737c13e-9926-424b-b40b-8307731826f6
-# ╠═8474d73c-243d-4c44-a03e-ee2bba9f3d29
-# ╠═9df38f2c-47ad-49f6-8ebf-38946f4aacad
 # ╟─da69722d-c937-4fea-9806-ae19b8fc43fd
-# ╠═1af0a4f3-f5d4-4154-afdf-80ee7eca5cdd
-# ╠═5fe52065-5067-403c-87ac-c35a6687a7c9
-# ╠═c5cfa30a-fa1d-4e28-932b-4ee217137853
-# ╠═18f5a6a7-3ba6-45d2-a190-759c3905909d
+# ╠═a265cfc7-b953-4989-9dc8-2db19a45d0b5
+# ╠═4f1a4635-4131-41cd-8b72-c7807ce5b733
+# ╟─899a68f1-e66a-4d2b-bbbd-542346e7f247
+# ╟─acbb122c-a3aa-49d3-8b30-8a08615b001b
+# ╠═b877bd95-475c-4d69-92d6-9b736971af3c
+# ╠═3b848af1-09a5-4bc3-b134-37c7169c4e4a
+# ╠═264bfc9b-f818-4f55-8c9b-bad954f72864
+# ╠═9ae7baad-2394-419e-ab70-369f4e62aa10
+# ╟─4a63682a-a690-40f7-bb67-8e8a721ac859
+# ╠═b8b0f747-f0e6-47bc-9921-97f92e29b189
 # ╟─f1567852-cbb6-4c28-91de-3f698e3a756e
 # ╟─720236db-b896-4591-bf0b-69b763460ec7
-# ╠═02b8f103-da2a-4685-a463-860a525c1453
+# ╠═60734153-890a-42cd-8811-277e6f7a3be5
+# ╟─02b8f103-da2a-4685-a463-860a525c1453
 # ╟─9d1eab1b-f09e-4471-a74f-e1f2c5d10d36
-# ╠═f376ba57-1638-4437-9462-0f4b1689eeb5
-# ╠═39c9341d-df27-44d6-ae04-2e54c3916670
+# ╠═24a0906b-0fe8-4988-884b-68e99a5a3829
+# ╟─f376ba57-1638-4437-9462-0f4b1689eeb5
+# ╠═66f76ab1-b589-418a-8889-4678e4c1870f
+# ╟─8f482008-887c-4473-b626-b583d9348840
+# ╟─b337d993-f77b-4af5-aaa5-bf8de00fd4c8
+# ╠═0f46eacc-5f01-4790-9b4a-92c25d6f750e
+# ╟─190e0c58-92d2-4868-b830-474018f8eed8
+# ╟─39c9341d-df27-44d6-ae04-2e54c3916670
 # ╠═4b6fa954-97df-4524-b4fb-e4d493150c86
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
