@@ -25,6 +25,9 @@ end
 # ╔═╡ a265cfc7-b953-4989-9dc8-2db19a45d0b5
 using DifferentialEquations;
 
+# ╔═╡ 0cc941a0-9691-4c7a-a9b1-aae1c4795532
+using BenchmarkTools;
+
 # ╔═╡ 0f7278c7-4ac8-43e6-b7fb-238581bfde1d
 TableOfContents() 
 
@@ -266,7 +269,7 @@ class Point
 	def __add__(self, other)
 		if isinstance(other, Point)  
 			return Point(self.x+other.x, self.y+other.y)
-		elif other is Float # здесь может быть неточность 
+		elif isinstance(other, Float) 
 			return Point(self.x+other, self.y+other)
 ```
 
@@ -389,7 +392,7 @@ $\frac{dy}{dt} \approx \frac{y(t+h)-y(t)}{h}$
 
 # ╔═╡ 5e2f5ace-c12c-4fcd-b345-f1c4dd75794f
 md"""
-$u(t+h) = u(t) +hf(t,y)$
+$u(t+h) = u(t) +hf(t,u)$
 
 или по-другому
 
@@ -556,7 +559,7 @@ begin
 	end
 
 	function (handler::ParamsFunctionHandler)(t,u)
-    	handler.f(t,u,handler.params...)
+    	handler.f(t,u,handler.params)
 	end
 
 	#проверим
@@ -570,37 +573,6 @@ end
 function euler(f, tspan, u₀, params, n)
 	fₚ = ParamsFunctionHandler(f, params)
 	return euler(fₚ, tspan, u₀,  n)
-end
-
-# ╔═╡ 4a63682a-a690-40f7-bb67-8e8a721ac859
-md"""
-число точек n = $@bind n Slider(1:100; show_value = true)
-"""
-
-# ╔═╡ 264bfc9b-f818-4f55-8c9b-bad954f72864
-begin
-	#Запишем нашу функцию
-	f(t,u) = u
-	fₚ(t,u,p) = p*u
-	#Запишем начальное условие
-	u₀ = [1.0]
-	tspan = (0.0,1.0)
-	params = [0.9]
-
-	sol₁ = euler(f, tspan,u₀, n)
-	
-	prob₁ = IVP(fₚ, tspan, u₀, params)
-	solₚ = euler(prob₁, n)
-end;
-
-# ╔═╡ 9ae7baad-2394-419e-ab70-369f4e62aa10
-typeof(n)
-
-# ╔═╡ b8b0f747-f0e6-47bc-9921-97f92e29b189
-begin
-	scatter(sol₁)
-	scatter!(solₚ)
-	plot!(range(0,1,100), exp.(range(0,1,100)))
 end
 
 # ╔═╡ f1567852-cbb6-4c28-91de-3f698e3a756e
@@ -740,13 +712,21 @@ md"""
 
 Явные методы Рунге-Кутты можно записать следующим образом
 
-$u(t+h) = u(t) + \Sigma_1^s b_ik_i$
+$u(t+h) =u(t)+Φ= u(t) + \Sigma_1^s b_ik_i$
+
+$Φ = a_1k_1+a_2k_2+...+a_ik_i$
+
+$a_i \text{ - константы}$ 
 
 $k_1 = f(t,u)$
 
-$k_2 = f(t,u)$
+$k_2 = f(t+p_1h,u+q_{11}k_1h)$
 
-![Таблица коэффициентов](../img/rk.png)
+$k_3 = f(t+p_2h,u+q_{21}k_1h+q_{22}k_2h)$
+
+$...$
+
+$k_i = f(t+p_{i-1}h, u+q_{i-1,1}k_1h+q_{i-1,2}k_2h+...+q_{i-1,i-1}k_{i-1}h)$
 
 ## Классический метод Рунге-Кутты 4 порядка
 
@@ -762,6 +742,51 @@ for i in 1:n
     end
 #какой-то код после
 ```
+"""
+
+# ╔═╡ c96fdbfa-77b6-4cd8-8c47-cb3ed82cdbd5
+md"""
+коэффициенты для метода Рунге-Кутты второго порядка
+
+$u_{i+1} = u_i+(a_1k_1+a_2k_2)h$
+
+$k_1 = f(t,u)$
+
+$k_2 = f(t+p_1h, u_i+q_{11}k_1h)$
+
+Чтобы найти коэффициенты необходимо решить систему уравнений
+
+$a_1+a_2 = 1$
+
+$a_2p_1 = \frac{1}{2}$
+
+$a_2q_{11} = \frac{1}{2}$
+
+Неизвестных у нас 4, а уравнения 3. Данная система будет иметь бесконечное количество решений. Другими словами у нас имеется семейство методов.
+
+Зафиксируем $a_2 = 1$
+
+Тогда получим
+
+$a_1 = 0$
+
+$p_1 = q_{11} = \frac{1}{2}$
+
+и уравнение для нахождения $u_{i+1}$ будет выглядеть следующим образом
+
+$k_1 = f(t,u)$
+
+$k_2 = f(t+p_1h,u+q_{11}k_1h) = f(t+0.5h,u+0.5k_1h)$
+
+$u_{i+1} = u_i + k_2 h$
+
+Мы получили алгоритм MidPoint
+
+Существует также алгоритм Ральстона ($a_2 = 3/4$)
+
+```Ralston (1962) and Ralston and Rabinowitz (1978)    determined that choosing a₂ = 3∕4 provides a minimum bound on the truncation error  for the second-order RK algorithms.```
+
+
 """
 
 # ╔═╡ 24a0906b-0fe8-4988-884b-68e99a5a3829
@@ -801,21 +826,6 @@ md"""
 число точек для теста nₜ = $@bind nₜ Slider(1:10; show_value = true)
 """
 
-# ╔═╡ 0f46eacc-5f01-4790-9b4a-92c25d6f750e
-begin
-	solₑ = euler(f, tspan,u₀, nₜ)
-	solₘ = midpoint(f, tspan,u₀, nₜ)
-	solᵣₖ₄ = rk4(f, tspan,u₀, nₜ)
-end;
-
-# ╔═╡ 190e0c58-92d2-4868-b830-474018f8eed8
-begin
-	plot(range(0,1,100), exp.(range(0,1,100)), label ="true")
-	plot!(solₑ,markershape = :rect, label = "euler")
-	plot!(solₘ,markershape = :circ, label = "midpoint")
-	plot!(solᵣₖ₄,markershape = :star, label = "rk4")
-end
-
 # ╔═╡ 39c9341d-df27-44d6-ae04-2e54c3916670
 md"""
 ## Пример решения более сложной диффуры
@@ -840,58 +850,207 @@ $\frac{dα}{dt} = A(T(t)) exp(\frac{-E_a}{RT(t)})\cdot (1-\alpha)$
 $\alpha(0) = 0$
 """
 
-# ╔═╡ 206e09e8-b7df-43e9-8b3b-ba6bca877400
+# ╔═╡ 651b070f-16e1-4268-83b5-f9cf1c446bbb
+#Ниже код который пока не готов 👀
+
+# ╔═╡ 52b38c65-fa51-40fa-9f90-e05198979962
 
 
 # ╔═╡ 4b6fa954-97df-4524-b4fb-e4d493150c86
-# Напишем самый простой вариант без сложной зависимости температуры от времени, без температурной зависимости  предэкспоненциального множителя
-begin 
-	const R = 8.314;
+# # Напишем самый простой вариант без сложной зависимости температуры от времени, без температурной зависимости  предэкспоненциального множителя
+# begin 
+# 	const R = 8.314;
 
-	T(t, β) = β*T
+# 	T(t, β) = β*T
 	
-	K(A, Ea, T) = A*exp(-Ea/(R*T));
+# 	K(A, Ea, T) = A*exp(-Ea/(R*T));
 
-	f1(α) = 1-α;
+# 	f1(α) = 1-α;
 
-	function F(α, params)
-		A, Ea, T = params;
+# 	function F(α, params)
+# 		A, Ea, T = params;
 		
-		return K(A, Ea, T)*f1(α)
+# 		return K(A, Ea, T)*f1(α)
+# 	end
+
+# 	struct KineticProblem
+# 		f::Function
+# 		K::Function
+# 		T
+# 		α
+# 		paramsAE::AbstractArray
+# 		params::AbstractArray
+# 	end
+	
+# 	function (kp::KineticProblem)(α)
+# 		K = kp.K;
+# 		f = kp.f;
+# 		T = kp.T;
+# 		A, Ea = kp.paramsAE;
+# 		params = kp.params;
+# 		return K(A, Ea, T)*f(α, params)
+# 	end
+
+# 	params_kin = [1e5,1e5,500.0]
+# 	#problem_kin = IVP(tspan,F,u₀, params_kin)
+# 	#res_kin = euler(F, tspan, n, u₀, params_kin)
+	
+# end
+
+# ╔═╡ 8b75c785-b238-4661-9312-58e1881c4a6f
+md"""
+Поэтому решим более простую задачу
+"""
+
+# ╔═╡ 97aa67eb-c30c-4f15-8e75-8e692a18a4c2
+begin
+	const R = 8.314
+	α₀ = 1e-2;
+	#Допустим ранее мы нашли значения энергии активации и предэкспоненциального множителя
+	Ea = 8e4
+	A = 1e4
+	T = 700;
+	tspan_kin = (0,1000)
+	params_kin = (Ea, A, T)
+	function fᵣ(u,p,t)
+		α = u
+		Ea, A, T = p;
+		return A*exp(-Ea/(R*T))*(1-α)
 	end
 
-	struct KineticProblem
-		f::Function
-		K::Function
-		T
-		α
-		paramsAE::AbstractArray
-		params::AbstractArray
+	function fᵣₑ(t,u,p) 
+		α = u
+		Ea, A, T = p;
+		return A*exp(-Ea/(R*T))*(1-α)
 	end
 	
-	function (kp::KineticProblem)(α)
-		K = kp.K;
-		f = kp.f;
-		T = kp.T;
-		A, Ea = kp.paramsAE;
-		params = kp.params;
-		return K(A, Ea, T)*f(α, params)
-	end
-
-	params_kin = [1e5,1e5,500.0]
-	#problem_kin = IVP(tspan,F,u₀, params_kin)
-	#res_kin = euler(F, tspan, n, u₀, params_kin)
-	
+	prob = ODEProblem(fᵣ,α₀,tspan_kin, params_kin)
 end
+
+# ╔═╡ 6a0c6ecc-0a7e-42c8-9233-8cc08cd98f17
+md"""
+Готовый метод (или структура) хранит информацию о задаче
+"""
+
+# ╔═╡ 6f7c1648-7a32-406a-b785-2e7138e7a89a
+begin
+	display(prob)
+	display(prob.p)
+end;
+
+# ╔═╡ 95dd7150-73bb-40cf-a541-ec2f3409caf0
+md"""
+Решение также хранит метаинформацию о типе решателя, входных и выходных данных
+"""
+
+# ╔═╡ 5d9cc233-bd17-473d-bbb5-dc0c454b3539
+md"""
+Проверим работу алгоритмов 
+"""
+
+# ╔═╡ 4a63682a-a690-40f7-bb67-8e8a721ac859
+md"""
+число точек n = $@bind n Slider(1:1000; show_value = true)
+"""
+
+# ╔═╡ 264bfc9b-f818-4f55-8c9b-bad954f72864
+begin
+	#Запишем нашу функцию
+	f(t,u) = u
+	fₚ(t,u,p) = p[1]*u
+	#Запишем начальное условие
+	u₀ = [1.0]
+	tspan = (0.0,1.0)
+	params = [0.9]
+
+	sol₁ = euler(f, tspan,u₀, n)
+	
+	prob₁ = IVP(fₚ, tspan, u₀, params)
+	solₚ = euler(prob₁, n)
+end;
+
+# ╔═╡ b8b0f747-f0e6-47bc-9921-97f92e29b189
+begin
+	scatter(sol₁, label = "без параметров")
+	scatter!(solₚ, label = "с параметром")
+	plot!(range(0,1,100), exp.(range(0,1,100)), label = "u₀exp(t)")
+end
+
+# ╔═╡ 0f46eacc-5f01-4790-9b4a-92c25d6f750e
+begin
+	solₑ = euler(f, tspan,u₀, nₜ)
+	solₘ = midpoint(f, tspan,u₀, nₜ)
+	solᵣₖ₄ = rk4(f, tspan,u₀, nₜ)
+end;
+
+# ╔═╡ 190e0c58-92d2-4868-b830-474018f8eed8
+begin
+	plot(range(0,1,100), exp.(range(0,1,100)), label ="true")
+	plot!(solₑ,markershape = :rect, label = "euler")
+	plot!(solₘ,markershape = :circ, label = "midpoint")
+	plot!(solᵣₖ₄,markershape = :star, label = "rk4")
+end
+
+# ╔═╡ 9ae7baad-2394-419e-ab70-369f4e62aa10
+typeof(n)
+
+# ╔═╡ 2ed5e3f4-6688-4b8e-9b79-3ea45448c5de
+begin
+	sol_kin = solve(prob) # с помощью встроенных методов библиотеки DifferentialEquations
+	sol_euler_DE = solve(prob, Euler(), dt = n/(tspan_kin[2]-tspan_kin[1]))
+	sol_ki_euler = euler(fᵣₑ, tspan_kin, α₀,params_kin, n) # самописный алгоритм
+end;
+
+# ╔═╡ d6439599-0e64-4326-bf32-4b45093eb51b
+begin
+	sol_kin.stats
+end
+
+# ╔═╡ 3d2fe60d-9abe-4be4-b23c-3a93afe289ee
+begin
+	plot(sol_kin, label = "Diferential Equations")
+	plot!(sol_ki_euler, label = "Euler наш!")
+	plot!(sol_euler_DE, label = "Euler из готовой библиотеки")
+end
+
+# ╔═╡ 3a2d31f7-d88b-4142-9daa-b084a773a3ca
+md"""
+## Тест скорости алгоритмов
+"""
+
+# ╔═╡ 52277e02-c481-4260-9bc4-3dbc64148a1d
+md"""
+Будем использовать готовую библиотеку `BenchmarkTools`
+"""
+
+# ╔═╡ 9ceddbe7-c499-4a09-9d4e-497853563d8e
+@benchmark euler(fᵣₑ, tspan_kin, α₀,params_kin, n) #Самописный алгоритм
+
+# ╔═╡ 899d53a0-32bb-4407-ac13-b605f8a7e211
+e_ = Euler()
+
+# ╔═╡ dacf8224-3982-45c2-ba1e-b468a7fe80f6
+@benchmark solve($(prob), $(e_), dt = n/(tspan_kin[2]-tspan_kin[1])) # готовый алгоритм Эйлера
+
+# ╔═╡ 71690a8a-8ed1-4dc1-bcb6-69883e616805
+@benchmark solve(prob) # готовый алгоритм с автоматическим выбором метода
+
+# ╔═╡ d6992705-3220-422f-88e3-b1b77c9c8a8e
+md"""
+# Планы на будущее
+
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
+BenchmarkTools = "~1.6.3"
 DifferentialEquations = "~7.17.0"
 Plots = "~1.41.4"
 PlutoUI = "~0.7.78"
@@ -901,9 +1060,9 @@ PlutoUI = "~0.7.78"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.12.3"
+julia_version = "1.12.4"
 manifest_format = "2.0"
-project_hash = "2c07365cca3e16f3b28cf580dbed9560659c7e03"
+project_hash = "3a52bce9a33e9bc5fe60eed767e085054d008a77"
 
 [[deps.ADTypes]]
 git-tree-sha1 = "f7304359109c768cf32dc5fa2d371565bb63b68a"
@@ -1044,6 +1203,12 @@ version = "1.11.0"
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 version = "1.11.0"
+
+[[deps.BenchmarkTools]]
+deps = ["Compat", "JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
+git-tree-sha1 = "7fecfb1123b8d0232218e2da0c213004ff15358d"
+uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+version = "1.6.3"
 
 [[deps.BitFlags]]
 git-tree-sha1 = "0691e34b3bb8be9307330f88d1a3c3f25466c24d"
@@ -2214,7 +2379,7 @@ version = "0.3.7"
 
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
-version = "2025.5.20"
+version = "2025.11.4"
 
 [[deps.MuladdMacro]]
 git-tree-sha1 = "cac9cc5499c25554cba55cd3c30543cff5ca4fab"
@@ -2705,6 +2870,11 @@ version = "1.5.1"
 [[deps.Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+version = "1.11.0"
+
+[[deps.Profile]]
+deps = ["StyledStrings"]
+uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
 [[deps.PtrArrays]]
@@ -3587,10 +3757,9 @@ version = "1.13.0+0"
 # ╟─5e2f5ace-c12c-4fcd-b345-f1c4dd75794f
 # ╠═0e76e5e5-9be3-40e9-baea-ff3bdf4b921d
 # ╟─5a360b35-d10b-46b0-9f17-b4029ee80404
-# ╠═156c3e18-c19a-4476-bf35-35b25a67d3bf
+# ╟─156c3e18-c19a-4476-bf35-35b25a67d3bf
 # ╟─2737c13e-9926-424b-b40b-8307731826f6
 # ╟─da69722d-c937-4fea-9806-ae19b8fc43fd
-# ╠═a265cfc7-b953-4989-9dc8-2db19a45d0b5
 # ╠═4f1a4635-4131-41cd-8b72-c7807ce5b733
 # ╟─899a68f1-e66a-4d2b-bbbd-542346e7f247
 # ╟─acbb122c-a3aa-49d3-8b30-8a08615b001b
@@ -3598,22 +3767,42 @@ version = "1.13.0+0"
 # ╠═3b848af1-09a5-4bc3-b134-37c7169c4e4a
 # ╠═264bfc9b-f818-4f55-8c9b-bad954f72864
 # ╠═9ae7baad-2394-419e-ab70-369f4e62aa10
-# ╟─4a63682a-a690-40f7-bb67-8e8a721ac859
 # ╠═b8b0f747-f0e6-47bc-9921-97f92e29b189
 # ╟─f1567852-cbb6-4c28-91de-3f698e3a756e
 # ╟─720236db-b896-4591-bf0b-69b763460ec7
 # ╠═60734153-890a-42cd-8811-277e6f7a3be5
 # ╟─02b8f103-da2a-4685-a463-860a525c1453
 # ╟─9d1eab1b-f09e-4471-a74f-e1f2c5d10d36
+# ╟─c96fdbfa-77b6-4cd8-8c47-cb3ed82cdbd5
 # ╠═24a0906b-0fe8-4988-884b-68e99a5a3829
 # ╟─f376ba57-1638-4437-9462-0f4b1689eeb5
-# ╠═66f76ab1-b589-418a-8889-4678e4c1870f
+# ╟─66f76ab1-b589-418a-8889-4678e4c1870f
 # ╟─8f482008-887c-4473-b626-b583d9348840
-# ╟─b337d993-f77b-4af5-aaa5-bf8de00fd4c8
+# ╠═b337d993-f77b-4af5-aaa5-bf8de00fd4c8
 # ╠═0f46eacc-5f01-4790-9b4a-92c25d6f750e
 # ╟─190e0c58-92d2-4868-b830-474018f8eed8
 # ╟─39c9341d-df27-44d6-ae04-2e54c3916670
-# ╠═206e09e8-b7df-43e9-8b3b-ba6bca877400
-# ╠═4b6fa954-97df-4524-b4fb-e4d493150c86
+# ╠═651b070f-16e1-4268-83b5-f9cf1c446bbb
+# ╠═52b38c65-fa51-40fa-9f90-e05198979962
+# ╟─4b6fa954-97df-4524-b4fb-e4d493150c86
+# ╟─8b75c785-b238-4661-9312-58e1881c4a6f
+# ╠═a265cfc7-b953-4989-9dc8-2db19a45d0b5
+# ╠═97aa67eb-c30c-4f15-8e75-8e692a18a4c2
+# ╟─6a0c6ecc-0a7e-42c8-9233-8cc08cd98f17
+# ╠═6f7c1648-7a32-406a-b785-2e7138e7a89a
+# ╠═2ed5e3f4-6688-4b8e-9b79-3ea45448c5de
+# ╟─95dd7150-73bb-40cf-a541-ec2f3409caf0
+# ╠═d6439599-0e64-4326-bf32-4b45093eb51b
+# ╟─5d9cc233-bd17-473d-bbb5-dc0c454b3539
+# ╠═4a63682a-a690-40f7-bb67-8e8a721ac859
+# ╠═3d2fe60d-9abe-4be4-b23c-3a93afe289ee
+# ╟─3a2d31f7-d88b-4142-9daa-b084a773a3ca
+# ╟─52277e02-c481-4260-9bc4-3dbc64148a1d
+# ╠═0cc941a0-9691-4c7a-a9b1-aae1c4795532
+# ╠═9ceddbe7-c499-4a09-9d4e-497853563d8e
+# ╠═899d53a0-32bb-4407-ac13-b605f8a7e211
+# ╠═dacf8224-3982-45c2-ba1e-b468a7fe80f6
+# ╠═71690a8a-8ed1-4dc1-bcb6-69883e616805
+# ╟─d6992705-3220-422f-88e3-b1b77c9c8a8e
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
