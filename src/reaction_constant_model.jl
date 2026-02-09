@@ -10,9 +10,8 @@ function K(reaction_rate::ReactionRateModel)
 end
 
 struct ReactionRate{T} <: ReactionRateModel
-    A::T
-    Ea::T
-    T::T
+    params::NTuple{2,Float64}
+    name::NTuple{2,Symbol}
 end
 
 Ka = ReactionRate(1e5,1e5,1000.0)
