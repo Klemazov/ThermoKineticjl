@@ -1,16 +1,9 @@
 
 abstract type TemperatureModel end
 
-struct TConstant<:TemperatureModel end
-struct TConstantRate<:TemperatureModel end
-struct TPolynomial<: TemperatureModel end
+struct Temperature{F}<:TemperatureModel
+    f::F
+end
 
+(p::Temperature)() = p.f
 
-
-
-T(t) = t
-
-T(t,β) = β*T
-
-#TODO
-#T(t) = spline(t)  
